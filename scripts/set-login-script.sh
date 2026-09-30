@@ -34,4 +34,34 @@ npm pkg set \
   "scripts.test=playwright test"
 
 echo "Updated package.json (backup saved as package.json.bak)"
+
+# Replace playwright.config.ts (back up any existing one)
+[[ -f playwright.config.ts ]] && cp playwright.config.ts playwright.config.ts.bak
+
+cat > playwright.config.ts << EOF
+import { defineConfig, devices } from '@playwright/test';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+const AUTH_FILE = path.join(os.homedir(), '.auth', 'user.json');
+if (!fs.existsSync(AUTH_FILE)) {
+  throw new Error('No saved session found at ' + AUTH_FILE + '. Run "npm run login" first.');
+}
+
+export default defineConfig({
+  testDir: './tests',
+  use: {
+    baseURL: process.env.BASE_URL ?? '$DEFAULT_URL',
+    headless: true,
+    trace: 'on-first-retry',
+    storageState: AUTH_FILE,
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  ],
+});
+EOF
+
+echo "Wrote playwright.config.ts (previous version saved as playwright.config.ts.bak, if one existed)"
 echo "Default login URL: $DEFAULT_URL/login  (override with BASE_URL=...)"
